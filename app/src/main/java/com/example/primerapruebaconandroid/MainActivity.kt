@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -27,16 +28,20 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Delete
@@ -48,6 +53,8 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Update
 import com.example.primerapruebaconandroid.ui.theme.PrimeraPruebaConAndroidTheme
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
 
 
 class MainActivity : ComponentActivity() {
@@ -58,7 +65,7 @@ class MainActivity : ComponentActivity() {
             PrimeraPruebaConAndroidTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     TodoApp(
-                        name = "Haponiuk", modifier = Modifier.padding(innerPadding)
+                        name = "Todolist", modifier = Modifier.padding(innerPadding)
                     )
                 }
             }
@@ -75,21 +82,47 @@ data class Tarea(
 @Dao
 interface TareaDao {
     @Insert
-    fun insertar(tarea: Tarea)
+    suspend fun insertar(tarea: Tarea)
 
     @Delete
-    fun eliminar(tarea: Tarea)
-
-    @Query("SELECT * FROM tarea")
-    fun obtenerTodasTareas(): List<Tarea>
+    suspend fun eliminar(tarea: Tarea)
 
     @Update
-    fun actualizarTarea(tarea: Tarea)
+    suspend fun actualizarTarea(tarea: Tarea)
+
+    @Query("SELECT * FROM tarea")
+    fun obtenerTodasTareas(): Flow<List<Tarea>>
 }
 
 @Database(entities = [Tarea::class], version = 1)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun tareaDao(): TareaDao
+}
+
+class TareaViewModel(private val dao: TareaDao) : ViewModel() {
+
+    val tareas: Flow<List<Tarea>> = dao.obtenerTodasTareas()
+
+
+    fun agregarTarea(texto: String) {
+        viewModelScope.launch {
+            val nuevaTarea = Tarea(texto = texto, completada = false)
+            dao.insertar(nuevaTarea)
+        }
+    }
+
+    fun eliminarTarea(tarea: Tarea) {
+        viewModelScope.launch {
+            dao.eliminar(tarea)
+        }
+    }
+
+    fun actualizarTarea(tarea: Tarea) {
+        viewModelScope.launch {
+            dao.actualizarTarea(tarea)
+        }
+    }
+
 }
 
 // Funcion Tarea
@@ -98,79 +131,65 @@ fun TodoApp(name: String, modifier: Modifier = Modifier) {
     var textoNuevo by remember { mutableStateOf("") }
     var mostrarDialog by remember { mutableStateOf(false) }
 
-    // Room creado
     val context = LocalContext.current
-
     val database = remember {
         Room.databaseBuilder(
             context, AppDatabase::class.java, "tarea_database"
-        ).allowMainThreadQueries().build()
+        ).build()
     }
-    var listaTareas by remember {
-        mutableStateOf(
-            database.tareaDao().obtenerTodasTareas()
-        )
+    val viewModel = remember {
+        TareaViewModel(database.tareaDao())
     }
+    val listaTareas by viewModel.tareas.collectAsState(initial = emptyList())
 
-    Column(modifier = modifier.padding(16.dp)) {
-        // Titulo App
-        Text(
-            "Hapo List",
-            style = MaterialTheme.typography.displayMedium,
-            modifier = Modifier.padding(16.dp)
-        )
-        // Agregar tarea
-        TextField(
-            value = textoNuevo,
-            onValueChange = { textoNuevo = it },
-            label = { Text("Ingrese su tarea") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.height(16.dp))
+    Box(modifier = modifier.fillMaxSize()) {  // Box contenedor
+        Column(modifier = Modifier.padding(16.dp)) {
 
-        // Boton para agregar tarea
+            Text(
+                "Todolist",
+                style = MaterialTheme.typography.displayMedium,
+                modifier = Modifier.padding(16.dp)
+            )
+
+            // Lista de tareas
+            for (tarea in listaTareas) {
+                Card {
+                    Row {
+                        Text(
+                            tarea.texto,
+                            color = if (tarea.completada) Color.Gray else Color.White,
+                            textDecoration = if (tarea.completada) TextDecoration.LineThrough else TextDecoration.None,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Checkbox(
+                            checked = tarea.completada, onCheckedChange = {
+                                val tareaActualizada = tarea.copy(completada = !tarea.completada)
+                                viewModel.actualizarTarea(tareaActualizada)
+
+                            })
+                        Spacer(modifier = Modifier.width(8.dp))
+                        IconButton(onClick = {
+                            viewModel.eliminarTarea(tarea)
+
+                        }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Eliminar")
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
+
         FloatingActionButton(
-            onClick = { mostrarDialog = true }
+            onClick = { mostrarDialog = true },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
         ) {
             Icon(Icons.Filled.Add, "Agregar")
         }
-
-        // Lista de tareas
-        for (tarea in listaTareas) {
-            Card {
-                Row {
-                    // Tarea
-                    Text(
-                        tarea.texto,
-                        color = if (tarea.completada) Color.Gray else Color.White,
-                        textDecoration = if (tarea.completada) TextDecoration.LineThrough else TextDecoration.None,
-                        modifier = Modifier.weight(1f)
-                    )
-                    // Marcar como completa
-                    Checkbox(
-                        checked = tarea.completada, onCheckedChange = {
-                            val tareaActualizada = tarea.copy(
-                                completada = !tarea.completada
-                            )
-                            database.tareaDao().actualizarTarea(tareaActualizada)
-                            listaTareas = database.tareaDao().obtenerTodasTareas()
-                        })
-                    Spacer(modifier = Modifier.width(8.dp))
-                    // Eliminar tarea
-                    IconButton(onClick = {
-                        database.tareaDao().eliminar(tarea)
-                        listaTareas = database.tareaDao().obtenerTodasTareas()
-                    }) {
-                        Icon(
-                            Icons.Default.Delete, contentDescription = "Eliminar"
-                        )
-                    }
-
-                }
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-        }
     }
+    // Ventana emergente input tarea
     if (mostrarDialog) {
         AlertDialog(
             onDismissRequest = { mostrarDialog = false },
@@ -187,14 +206,11 @@ fun TodoApp(name: String, modifier: Modifier = Modifier) {
                 TextButton(
                     onClick = {
                         if (textoNuevo.isNotBlank()) {
-                            val nuevaTarea = Tarea(texto = textoNuevo, completada = false)
-                            database.tareaDao().insertar(nuevaTarea)
-                            listaTareas = database.tareaDao().obtenerTodasTareas()
+                            viewModel.agregarTarea(textoNuevo)
                             textoNuevo = ""
                             mostrarDialog = false
                         }
-                    }
-                ) {
+                    }) {
                     Text("Agregar")
                 }
             },
@@ -205,8 +221,7 @@ fun TodoApp(name: String, modifier: Modifier = Modifier) {
                 }) {
                     Text("Cancelar")
                 }
-            }
-        )
+            })
     }
 }
 
