@@ -13,11 +13,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -52,7 +54,10 @@ import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Update
+import com.example.primerapruebaconandroid.ui.theme.DarkGray
+import com.example.primerapruebaconandroid.ui.theme.LightGray
 import com.example.primerapruebaconandroid.ui.theme.PrimeraPruebaConAndroidTheme
+import com.example.primerapruebaconandroid.ui.theme.White
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
@@ -153,8 +158,13 @@ fun TodoApp(name: String, modifier: Modifier = Modifier) {
 
             // Lista de tareas
             for (tarea in listaTareas) {
-                Card {
-                    Row {
+                Card (modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = DarkGray
+                    ),
+                    shape = RoundedCornerShape(12.dp)) {
+                    Row(modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             tarea.texto,
                             color = if (tarea.completada) Color.Gray else Color.White,
@@ -182,6 +192,8 @@ fun TodoApp(name: String, modifier: Modifier = Modifier) {
 
         FloatingActionButton(
             onClick = { mostrarDialog = true },
+            containerColor = White,
+            contentColor = LightGray,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(16.dp)
@@ -206,7 +218,7 @@ fun TodoApp(name: String, modifier: Modifier = Modifier) {
                 TextButton(
                     onClick = {
                         if (textoNuevo.isNotBlank()) {
-                            viewModel.agregarTarea(textoNuevo)
+                            viewModel.agregarTarea(textoNuevo.trim())
                             textoNuevo = ""
                             mostrarDialog = false
                         }
