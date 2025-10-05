@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,18 +18,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -56,6 +60,7 @@ import androidx.room.RoomDatabase
 import androidx.room.Update
 import com.example.primerapruebaconandroid.ui.theme.DarkGray
 import com.example.primerapruebaconandroid.ui.theme.LightGray
+import com.example.primerapruebaconandroid.ui.theme.MediumGray
 import com.example.primerapruebaconandroid.ui.theme.PrimeraPruebaConAndroidTheme
 import com.example.primerapruebaconandroid.ui.theme.White
 import kotlinx.coroutines.flow.Flow
@@ -131,10 +136,12 @@ class TareaViewModel(private val dao: TareaDao) : ViewModel() {
 }
 
 // Funcion Tarea
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TodoApp(name: String, modifier: Modifier = Modifier) {
     var textoNuevo by remember { mutableStateOf("") }
-    var mostrarDialog by remember { mutableStateOf(false) }
+    var mostrarBottomSheet by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState()
 
     val context = LocalContext.current
     val database = remember {
@@ -158,13 +165,15 @@ fun TodoApp(name: String, modifier: Modifier = Modifier) {
 
             // Lista de tareas
             for (tarea in listaTareas) {
-                Card (modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
+                Card(
+                    modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(
                         containerColor = DarkGray
-                    ),
-                    shape = RoundedCornerShape(12.dp)) {
-                    Row(modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
+                    ), shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
                             tarea.texto,
                             color = if (tarea.completada) Color.Gray else Color.White,
@@ -191,7 +200,7 @@ fun TodoApp(name: String, modifier: Modifier = Modifier) {
         }
 
         FloatingActionButton(
-            onClick = { mostrarDialog = true },
+            onClick = { mostrarBottomSheet = true },
             containerColor = White,
             contentColor = LightGray,
             modifier = Modifier
@@ -202,38 +211,67 @@ fun TodoApp(name: String, modifier: Modifier = Modifier) {
         }
     }
     // Ventana emergente input tarea
-    if (mostrarDialog) {
-        AlertDialog(
-            onDismissRequest = { mostrarDialog = false },
-            title = { Text("Nueva Tarea") },
-            text = {
+    if (mostrarBottomSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { mostrarBottomSheet = false },
+            sheetState = sheetState,
+            containerColor = MediumGray
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Text(
+                    "Nueva Tarea",
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
                 TextField(
                     value = textoNuevo,
                     onValueChange = { textoNuevo = it },
                     label = { Text("Ingrese su tarea") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedTextColor = White,
+                        unfocusedTextColor = White,
+                        focusedLabelColor = White,
+                        unfocusedLabelColor = White,
+                        cursorColor = White
+                    )
                 )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        if (textoNuevo.isNotBlank()) {
-                            viewModel.agregarTarea(textoNuevo.trim())
-                            textoNuevo = ""
-                            mostrarDialog = false
-                        }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = {
+                        mostrarBottomSheet = false
+                        textoNuevo = ""
                     }) {
-                    Text("Agregar")
+                        Text("Cancelar")
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    TextButton(
+                        onClick = {
+                            if (textoNuevo.isNotBlank()) {
+                                viewModel.agregarTarea(textoNuevo.trim())
+                                textoNuevo = ""
+                                mostrarBottomSheet = false
+                            }
+                        }) {
+                        Text("Agregar")
+                    }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    mostrarDialog = false
-                    textoNuevo = ""
-                }) {
-                    Text("Cancelar")
-                }
-            })
+            }
+        }
     }
 }
 
