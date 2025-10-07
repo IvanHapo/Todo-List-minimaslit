@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -65,6 +67,7 @@ import com.example.primerapruebaconandroid.ui.theme.PrimeraPruebaConAndroidTheme
 import com.example.primerapruebaconandroid.ui.theme.White
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
+
 
 
 class MainActivity : ComponentActivity() {
@@ -154,48 +157,54 @@ fun TodoApp(name: String, modifier: Modifier = Modifier) {
     }
     val listaTareas by viewModel.tareas.collectAsState(initial = emptyList())
 
-    Box(modifier = modifier.fillMaxSize()) {  // Box contenedor
-        Column(modifier = Modifier.padding(16.dp)) {
-
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
             Text(
                 "Todolist",
                 style = MaterialTheme.typography.displayMedium,
                 modifier = Modifier.padding(16.dp)
             )
 
-            // Lista de tareas
-            for (tarea in listaTareas) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(
-                        containerColor = DarkGray
-                    ), shape = RoundedCornerShape(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+            ) {
+                items(listaTareas) { tarea ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = DarkGray
+                        ),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(
-                            tarea.texto,
-                            color = if (tarea.completada) Color.Gray else Color.White,
-                            textDecoration = if (tarea.completada) TextDecoration.LineThrough else TextDecoration.None,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Checkbox(
-                            checked = tarea.completada, onCheckedChange = {
-                                val tareaActualizada = tarea.copy(completada = !tarea.completada)
-                                viewModel.actualizarTarea(tareaActualizada)
-
-                            })
-                        Spacer(modifier = Modifier.width(8.dp))
-                        IconButton(onClick = {
-                            viewModel.eliminarTarea(tarea)
-
-                        }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Eliminar")
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                tarea.texto,
+                                color = if (tarea.completada) Color.Gray else Color.White,
+                                textDecoration = if (tarea.completada) TextDecoration.LineThrough else TextDecoration.None,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Checkbox(
+                                checked = tarea.completada,
+                                onCheckedChange = {
+                                    val tareaActualizada = tarea.copy(completada = !tarea.completada)
+                                    viewModel.actualizarTarea(tareaActualizada)
+                                }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            IconButton(onClick = {
+                                viewModel.eliminarTarea(tarea)
+                            }) {
+                                Icon(Icons.Default.Delete, contentDescription = "Eliminar")
+                            }
                         }
                     }
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
-                Spacer(modifier = Modifier.height(16.dp))
             }
         }
 
